@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101522">
+<title>PUNI MONITOR</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101522;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px}
+header{text-align:center;padding:18px 0}
+h1{font-size:27px;margin:0;color:#ffe16b}
+.sub{color:#9ba6bb;font-size:12px;margin-top:7px}
+.card{background:#1b2435;border:1px solid #303c53;border-radius:16px;padding:17px;margin:14px 0}
+h2{font-size:17px;margin:0 0 15px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#111a29;border-radius:12px;padding:13px}
+.stat small{color:#9ba6bb}
+.stat strong{display:block;font-size:25px;margin-top:6px}
+input{width:100%;padding:12px;background:#101827;color:white;border:1px solid #46536b;border-radius:9px;font-size:16px;margin:6px 0 12px}
+button{border:0;border-radius:10px;padding:13px;color:#111827;background:#ffe16b;font-size:15px;font-weight:bold;cursor:pointer}
+button.secondary{background:#34435c;color:white}
+button.danger{background:#9e3947;color:white}
+.buttons{display:flex;gap:9px}
+.buttons button{flex:1}
+label{font-size:13px;color:#bdc8d9}
+.itemrow{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #344057;font-size:14px}
+.muted{color:#9ba6bb;font-size:12px}
+.history{font-size:13px;line-height:1.8}
+</style>
+</head>
+<body>
+<header>
+<h1>⚡ PUNI MONITOR</h1>
+<div class="sub">妖怪ウォッチぷにぷに 周回記録ツール</div>
+<div class="muted" id="today"></div>
+</header>
+
+<div class="card">
+<h2>📊 周回状況</h2>
+<div class="stats">
+<div class="stat"><small>累計周回数</small><strong id="runs">0</strong></div>
+<div class="stat"><small>本日の周回数</small><strong id="dailyRuns">0</strong></div>
+<div class="stat"><small>勝利数</small><strong id="wins">0</strong></div>
+<div class="stat"><small>敗北数</small><strong id="losses">0</strong></div>
+</div>
+<div class="buttons" style="margin-top:15px">
+<button onclick="addRun(true)">🏆 クリア記録</button>
+<button class="secondary" onclick="addRun(false)">敗北記録</button>
+</div>
+</div>
+
+<div class="card">
+<h2>💰 Yポイント・Yマネー</h2>
+<label>現在のYポイント</label>
+<input id="yp" type="number" min="0" placeholder="現在の数値">
+<label>現在のYマネー</label>
+<input id="ym" type="number" min="0" placeholder="現在の数値">
+<button onclick="saveMoney()">数値を記録する</button>
+<div class="stats" style="margin-top:15px">
+<div class="stat"><small>Yポイント増減</small><strong id="ypDelta">0</strong></div>
+<div class="stat"><small>Yマネー増減</small><strong id="ymDelta">0</strong></div>
+<div class="stat"><small>本日のYポイント獲得</small><strong id="ypToday">0</strong></div>
+<div class="stat"><small>本日のYマネー獲得</small><strong id="ymToday">0</strong></div>
+</div>
+<p class="muted">※前回記録との差分で計算。カンスト表示などで正確な数値が読めない場合は、実際の増加量を記録できません。</p>
+</div>
+
+<div class="card">
+<h2>🎁 アイテムドロップ</h2>
+<label>アイテム名</label>
+<input id="itemName" placeholder="例：強敵のお宝">
+<label>獲得個数</label>
+<input id="itemCount" type="number" min="1" value="1">
+<button onclick="addItem()">ドロップを記録</button>
+<div id="items" style="margin-top:12px"></div>
+<p class="muted">ドロップ率＝記録した獲得周回数 ÷ 総周回数ではなく、獲得個数 ÷ 周回数で表示します。</p>
+</div>
+
+<div class="card">
+<h2>📜 最近の記録</h2>
+<div id="history" class="history">まだ記録はありません。</div>
+</div>
+
+<div class="card">
+<h2>💾 データ管理</h2>
+<button class="secondary" onclick="exportData()">記録をダウンロード</button>
+<button class="danger" style="margin-top:10px;width:100%" onclick="resetData()">全データを削除</button>
+<p class="muted">データはこのブラウザ内に保存されます。ブラウザのデータ削除や端末変更で消える場合があります。</p>
+</div>
+
+<script>
+const KEY="puni_monitor_v1";
+let data=JSON.parse(localStorage.getItem(KEY)||"null")||{
+runs:[],money:[],items:[]
+};
+const today=()=>new Date().toLocaleDateString("sv-SE");
+const fmt=n=>Number(n||0).toLocaleString("ja-JP");
+function save(){localStorage.setItem(KEY,JSON.stringify(data));render()}
+function addRun(win){
+data.runs.push({date:today(),time:new Date().toLocaleTimeString(),win});
+save();
+}
+function saveMoney(){
+const yp=document.getElementById("yp").value;
+const ym=document.getElementById("ym").value;
+if(yp===""&&ym===""){alert("数値を入力してね");return}
+data.money.push({
+date:today(),time:new Date().toLocaleTimeString(),
+yp:yp===""?null:Number(yp),ym:ym===""?null:Number(ym)
+});
+save();
+}
+function addItem(){
+const name=document.getElementById("itemName").value.trim();
+const count=Number(document.getElementById("itemCount").value);
+if(!name||!Number.isInteger(count)||count<1){alert("アイテム名と個数を入力してね");return}
+data.items.push({name,count,date:today(),time:new Date().toLocaleTimeString(),runCount:data.runs.length});
+document.getElementById("itemName").value="";
+document.getElementById("itemCount").value=1;
+save();
+}
+function render(){
+const t=today();
+document.getElementById("today").textContent="📅 "+t;
+const daily=data.runs.filter(x=>x.date===t);
+document.getElementById("runs").textContent=fmt(data.runs.length);
+document.getElementById("dailyRuns").textContent=fmt(daily.length);
+document.getElementById("wins").textContent=fmt(data.runs.filter(x=>x.win).length);
+document.getElementById("losses").textContent=fmt(data.runs.filter(x=>!x.win).length);
+
+const m=data.money;
+const latest=m[m.length-1];
+const previous=m[m.length-2];
+document.getElementById("yp").value=latest?.yp??"";
+document.getElementById("ym").value=latest?.ym??"";
+const delta=(key)=>latest?.[key]!=null&&previous?.[key]!=null?latest[key]-previous[key]:0;
+document.getElementById("ypDelta").textContent=fmt(delta("yp"));
+document.getElementById("ymDelta").textContent=fmt(delta("ym"));
+function dailyGain(key){
+const records=m.filter(x=>x.date===t&&x[key]!=null);
+return records.length>=2?records[records.length-1][key]-records[0][key]:0;
+}
+document.getElementById("ypToday").textContent=fmt(dailyGain("yp"));
+document.getElementById("ymToday").textContent=fmt(dailyGain("ym"));
+
+const totals={};
+data.items.forEach(x=>totals[x.name]=(totals[x.name]||0)+x.count);
+document.getElementById("items").innerHTML=Object.keys(totals).length?
+Object.entries(totals).map(([name,count])=>{
+const rate=data.runs.length?count/data.runs.length*100:0;
+return `<div class="itemrow"><span>${escapeHTML(name)}</span><span>${fmt(count)}個 / ${rate.toFixed(2)}%</span></div>`;
+}).join(""):"<p class='muted'>まだドロップ記録はありません。</p>";
+
+const events=[
+...data.runs.map(x=>({time:x.time,text:x.win?"🏆 クリア":"❌ 敗北"})),
+...data.money.map(x=>({time:x.time,text:"💰 Yポイント・Yマネー記録"})),
+...data.items.map(x=>({time:x.time,text:"🎁 "+x.name+" × "+x.count}))
+].slice(-12).reverse();
+document.getElementById("history").innerHTML=events.length?
+events.map(x=>`<div>${x.time}　${escapeHTML(x.text)}</div>`).join(""):"まだ記録はありません。";
+}
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function exportData(){
+const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);a.download="puni-monitor-data.json";a.click();
+URL.revokeObjectURL(a.href);
+}
+function resetData(){
+if(confirm("すべての記録を削除する？")){
+data={runs:[],money:[],items:[]};save();
+}
+}
+render();
+</script>
+</body>
+</html>
